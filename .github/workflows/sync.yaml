@@ -32,7 +32,14 @@ jobs:
 
     - name: Merge changes
       run: |
-        git merge --no-commit --no-ff --allow-unrelated-histories upstream/master
+        git merge --no-commit --no-ff --allow-unrelated-histories upstream/master || true
+        # Resolve conflicts by preferring upstream changes
+        git diff --name-only --diff-filter=U | while read -r file; do
+          if [[ "$file" != "build.yaml" && "$file" != "codeql-analysis.yml" && "$file" != "version_bump.yaml" ]]; then
+            git checkout --theirs "$file"
+            git add "$file"
+          fi
+        done
         for file in build.yaml codeql-analysis.yml version_bump.yaml; do
           if [ -e "$file" ]; then
             git reset HEAD "$file"
