@@ -2,7 +2,7 @@ name: Sync with upstream
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs every day at midnight
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,9 +11,9 @@ jobs:
 
     steps:
     - name: Checkout fork repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
       with:
-        ref: master  
+        ref: master
 
     - name: Set up git
       run: |
@@ -27,9 +27,21 @@ jobs:
       run: git fetch upstream
 
     - name: Merge upstream changes
-      run: git merge upstream/master --allow-unrelated-histories 
+      run: git merge upstream/master --allow-unrelated-histories
+
+    - name: Unstage specific files
+      run: |
+        git reset HEAD .github/workflows/build.yaml
+        git reset HEAD .github/workflows/codeql-analysis.yml
+        git reset HEAD .github/workflows/version_bump.yaml
+
+    - name: Restore specific files
+      run: |
+        git restore --staged .github/workflows/build.yaml
+        git restore --staged .github/workflows/codeql-analysis.yml
+        git restore --staged .github/workflows/version_bump.yaml
 
     - name: Push changes
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: git push origin master  
+      run: git push origin master
