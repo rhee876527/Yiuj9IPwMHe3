@@ -1,0 +1,43 @@
+name: Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily, adjust the schedule as needed
+  workflow_dispatch:
+
+jobs:
+  sync-fork:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Git
+      run: |
+        git config --global user.name "${{ github.actor }}"
+        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+        git remote add upstream https://github.com/folbricht/routedns.git  
+
+    - name: Fetch upstream changes
+      run: git fetch upstream
+
+    - name: Check for changes
+      id: check_changes
+      run: echo ::set-output name=changes::$(git diff --name-only HEAD...upstream/master | wc -l)
+
+    - name: Merge changes (excluding some actions)
+      if: steps.check_changes.outputs.changes > 0
+      run: |
+        git merge --no-commit --no-ff upstream/master
+        # Skip the specific files from being committed
+        git checkout --theirs -- build.yaml codeql-analysis.yml version_bump.yaml
+        git add -u 
+      
+    - name: Commit changes
+      if: steps.check_changes.outputs.changes > 0
+      run: git commit -m "Sync upstream changes"
+
+    - name: Push changes to fork
+      if: steps.check_changes.outputs.changes > 0
+      run: git push origin master
