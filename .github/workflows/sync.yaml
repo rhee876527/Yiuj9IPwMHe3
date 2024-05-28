@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Git
       run: |
@@ -24,7 +24,7 @@ jobs:
 
     - name: Check for changes
       id: check_changes
-      run: echo ::set-output name=changes::$(git diff --name-only HEAD...upstream/master | wc -l)
+      run: echo ::set-output name=changes::$(git diff --name-only master...upstream/master | wc -l)
 
     - name: Merge changes (excluding some actions)
       if: steps.check_changes.outputs.changes > 0
