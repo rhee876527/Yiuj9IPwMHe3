@@ -22,37 +22,14 @@ jobs:
     - name: Fetch upstream changes
       run: git fetch upstream
 
-    - name: Ensure local master branch exists
-      run: |
-        if [ -z "$(git branch --list master)" ]; then
-          git checkout -b master
-        else
-          git checkout master
-        fi
-
     - name: Merge changes
       run: |
         git merge --no-commit --no-ff --allow-unrelated-histories upstream/master || true
-        # Resolve conflicts by preferring upstream changes
-        git diff --name-only --diff-filter=U | while read -r file; do
-          if [[ "$file" != .github/workflows/*.yaml ]]; then
-            git checkout --theirs "$file"
-            git add "$file"
-          fi
-        done
-        for file in .github/workflows/*.yaml; do
-          if [ -e "$file" ]; then
-            git reset HEAD "$file"
-            git checkout -- "$file"
-          else
-            git rm --cached "$file"
-          fi
-        done
+        # Exclude YAML files from .github/workflows/ directory from being synchronized
+        git reset HEAD .github/workflows/*.yaml || true
+        git checkout -- .github/workflows/*.yaml || true
         git add -u 
 
     - name: Commit changes
       run: |
         git commit -m "Sync upstream changes" || echo "No changes to commit"
-
-    - name: Push changes to fork
-      run: git push origin master || echo "No changes to push"
