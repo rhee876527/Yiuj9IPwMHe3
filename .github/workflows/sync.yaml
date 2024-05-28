@@ -32,7 +32,7 @@ jobs:
 
     - name: Merge changes
       run: |
-        git merge --no-commit --no-ff upstream/master
+        git merge --no-commit --no-ff --allow-unrelated-histories upstream/master
         for file in build.yaml codeql-analysis.yml version_bump.yaml; do
           if [ -e "$file" ]; then
             git reset HEAD "$file"
