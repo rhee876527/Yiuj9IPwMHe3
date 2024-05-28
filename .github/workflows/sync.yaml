@@ -2,7 +2,7 @@ name: Sync
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Run daily, adjust the schedule as needed
+    - cron: '0 21 * * 2,0' #Tue & Sun 9PM UTC
   workflow_dispatch:
 
 jobs:
