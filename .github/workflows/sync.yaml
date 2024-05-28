@@ -26,14 +26,21 @@ jobs:
       id: check_changes
       run: echo ::set-output name=changes::$(git diff --name-only master...upstream/master | wc -l)
 
-    - name: Merge changes (excluding some actions)
+    - name: Merge changes
       if: steps.check_changes.outputs.changes > 0
       run: |
         git merge --no-commit --no-ff upstream/master
-        # Skip the specific files from being committed
-        git checkout --theirs -- build.yaml codeql-analysis.yml version_bump.yaml
+        # Ensure these files are not in the local repository after the merge
+        for file in build.yaml codeql-analysis.yml version_bump.yaml; do
+          if [ -e "$file" ]; then
+            git reset HEAD "$file"  # Unstage the file if it exists
+            git checkout -- "$file"  # Restore the file to its local state
+          else
+            git rm --cached "$file"  # Remove the file from the staging area if it doesn't exist locally
+          fi
+        done
         git add -u 
-      
+
     - name: Commit changes
       if: steps.check_changes.outputs.changes > 0
       run: git commit -m "Sync upstream changes"
