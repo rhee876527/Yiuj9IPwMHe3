@@ -66,6 +66,7 @@ func NewStaticResolver(id string, opt StaticResolverOptions) (*StaticResolver, e
 func (r *StaticResolver) Resolve(q *dns.Msg, ci ClientInfo) (*dns.Msg, error) {
 	answer := new(dns.Msg)
 	answer.SetReply(q)
+	answer.RecursionAvailable = q.RecursionDesired
 	log := logger(r.id, q, ci)
 
 	// Update the name of every answer record to match that of the query
@@ -80,7 +81,7 @@ func (r *StaticResolver) Resolve(q *dns.Msg, ci ClientInfo) (*dns.Msg, error) {
 	answer.Rcode = r.rcode
 	answer.Truncated = r.truncate
 
-	if err := r.opt.EDNS0EDETemplate.Apply(answer, q); err != nil {
+	if err := r.opt.EDNS0EDETemplate.Apply(answer, EDNS0EDEInput{q, nil}); err != nil {
 		log.WithError(err).Error("failed to apply edns0ede template")
 	}
 
