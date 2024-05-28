@@ -22,29 +22,30 @@ jobs:
     - name: Fetch upstream changes
       run: git fetch upstream
 
-    - name: Check for changes
-      id: check_changes
-      run: echo ::set-output name=changes::$(git diff --name-only master...upstream/master | wc -l)
+    - name: Ensure local master branch exists
+      run: |
+        if [ -z "$(git branch --list master)" ]; then
+          git checkout -b master
+        else
+          git checkout master
+        fi
 
     - name: Merge changes
-      if: steps.check_changes.outputs.changes > 0
       run: |
         git merge --no-commit --no-ff upstream/master
-        # Ensure these files are not in the local repository after the merge
         for file in build.yaml codeql-analysis.yml version_bump.yaml; do
           if [ -e "$file" ]; then
-            git reset HEAD "$file"  # Unstage the file if it exists
-            git checkout -- "$file"  # Restore the file to its local state
+            git reset HEAD "$file"
+            git checkout -- "$file"
           else
-            git rm --cached "$file"  # Remove the file from the staging area if it doesn't exist locally
+            git rm --cached "$file"
           fi
         done
         git add -u 
 
     - name: Commit changes
-      if: steps.check_changes.outputs.changes > 0
-      run: git commit -m "Sync upstream changes"
+      run: |
+        git commit -m "Sync upstream changes" || echo "No changes to commit"
 
     - name: Push changes to fork
-      if: steps.check_changes.outputs.changes > 0
-      run: git push origin master
+      run: git push origin master || echo "No changes to push"
