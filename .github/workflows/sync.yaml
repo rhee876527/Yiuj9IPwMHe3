@@ -2,7 +2,7 @@ name: Sync
 
 on:
   schedule:
-    - cron: '0 21 * * 2,0' #Tue & Sun 9PM UTC
+    - cron: '0 21 * * 2,0' # Tue & Sun 9PM UTC
   workflow_dispatch:
 
 jobs:
@@ -28,15 +28,23 @@ jobs:
         # Exclude YAML files from .github/workflows/ directory from being synchronized
         git reset HEAD .github/workflows/*.yaml .github/workflows/*.yml || true
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
-        git add -u 
+        git add -u
+
+    - name: Check for changes
+      id: changes
+      run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "::set-output name=changes::false"
+        else
+          echo "::set-output name=changes::true"
+        fi
 
     - name: Commit changes
-      id: commit
-      run: |
-        git commit -m "Sync upstream changes" && echo "::set-output name=committed::true" || echo "::set-output name=committed::false"
+      if: steps.changes.outputs.changes == 'true'
+      run: git commit -m "Sync upstream changes"
 
     - name: Push changes
-      if: steps.commit.outputs.committed == 'true'
+      if: steps.changes.outputs.changes == 'true'
       run: git push origin master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
