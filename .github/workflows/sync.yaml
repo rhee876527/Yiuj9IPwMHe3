@@ -22,28 +22,26 @@ jobs:
     - name: Fetch upstream changes
       run: git fetch upstream
 
-    - name: Check if merge is necessary
-      id: check_merge
+    - name: Check for upstream changes
+      id: check_upstream
       run: |
         UPSTREAM_BRANCH="master"
-        FORK_BRANCH="master"
+        LOCAL_BRANCH="master"
 
-        # Check for new commits in the upstream branch that are not in the fork's branch
-        NEW_COMMITS=$(git log HEAD..upstream/$UPSTREAM_BRANCH --oneline)
-
-        if [ -n "$NEW_COMMITS" ]; then
-          echo "Changes detected, merge needed."
+        # Check if the upstream branch has commits not present in the local branch
+        if [ $(git rev-list ${LOCAL_BRANCH}..upstream/${UPSTREAM_BRANCH} --count) -gt 0 ]; then
+          echo "Upstream changes detected."
           echo "merge_needed=true" >> $GITHUB_ENV
         else
-          echo "No changes to sync."
+          echo "No upstream changes detected."
           echo "merge_needed=false" >> $GITHUB_ENV
         fi
-      shell: sh
+      shell: bash
 
     - name: Merge changes
       if: env.merge_needed == 'true'
       run: |
-        git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
+        git merge upstream/${UPSTREAM_BRANCH} --no-commit --no-ff -Xtheirs --allow-unrelated-histories || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
         git reset HEAD .github/workflows/*.yaml .github/workflows/*.yml || true
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
@@ -51,7 +49,7 @@ jobs:
 
     - name: Check for changes
       if: env.merge_needed == 'true'
-      id: changes
+      id: check_changes
       run: |
         if [ -z "$(git status --porcelain)" ]; then
           echo "changes=false" >> $GITHUB_ENV
