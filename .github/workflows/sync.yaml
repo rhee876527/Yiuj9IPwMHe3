@@ -24,7 +24,7 @@ jobs:
 
     - name: Merge changes
       run: |
-        git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
+        git merge --no-commit --no-ff -Xtheirs upstream/master || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
         git reset HEAD .github/workflows/*.yaml .github/workflows/*.yml || true
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
