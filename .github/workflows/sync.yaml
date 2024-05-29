@@ -25,11 +25,24 @@ jobs:
     - name: Check if merge is necessary
       id: check_merge
       run: |
-        set -e
         # Get the latest commit hash from upstream
         UPSTREAM_HASH=$(git rev-parse upstream/master)
+        if [ $? -ne 0 ]; then
+          echo "Failed to get upstream hash"
+          echo "::set-output name=merge_needed::false"
+          exit 0
+        fi
+        echo "UPSTREAM_HASH=$UPSTREAM_HASH"
+        
         # Get the merge base of upstream/master and origin/master
         MERGE_BASE=$(git merge-base upstream/master origin/master)
+        if [ $? -ne 0 ]; then
+          echo "Failed to get merge base"
+          echo "::set-output name=merge_needed::false"
+          exit 0
+        fi
+        echo "MERGE_BASE=$MERGE_BASE"
+        
         # Check if the latest commit on upstream is not an ancestor of the merge base
         if [ "$UPSTREAM_HASH" = "$MERGE_BASE" ]; then
           echo "No changes to sync."
@@ -38,6 +51,7 @@ jobs:
           echo "Changes detected, merge needed."
           echo "::set-output name=merge_needed::true"
         fi
+      shell: bash
 
     - name: Merge changes
       if: steps.check_merge.outputs.merge_needed == 'true'
