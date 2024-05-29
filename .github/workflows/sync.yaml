@@ -31,8 +31,8 @@ jobs:
         UPSTREAM_BRANCH="master"
         FORK_BRANCH="master"
 
-        # Compare the commits to check if there are any new commits in the upstream repository
-        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$UPSTREAM_BRANCH...$FORK_REPO:$FORK_BRANCH"
+        # Construct the comparison URL
+        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$UPSTREAM_BRANCH...${{ github.actor }}:${{ github.repository }}:$FORK_BRANCH"
         echo "COMPARE_URL=$COMPARE_URL"
         COMPARE_RESULT=$(curl -s $COMPARE_URL)
         echo "COMPARE_RESULT=$COMPARE_RESULT"
