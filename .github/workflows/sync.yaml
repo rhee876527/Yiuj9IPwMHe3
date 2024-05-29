@@ -29,9 +29,9 @@ jobs:
         FORK_BRANCH="master"
 
         # Check for new commits in the upstream branch that are not in the fork's branch
-        NEW_COMMITS=$(git rev-list HEAD..upstream/$UPSTREAM_BRANCH --count)
+        NEW_COMMITS=$(git log HEAD..upstream/$UPSTREAM_BRANCH --oneline)
 
-        if [ "$NEW_COMMITS" -gt 0 ]; then
+        if [ -n "$NEW_COMMITS" ]; then
           echo "Changes detected, merge needed."
           echo "merge_needed=true" >> $GITHUB_ENV
         else
