@@ -1,7 +1,7 @@
 name: docker-publish
 
 on:
-  push:
+#  push:
   workflow_dispatch:
 #  schedule:
 #    - cron: '33 5 * * 1' #build every mon at 5.33 utc
