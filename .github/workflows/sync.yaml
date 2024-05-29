@@ -31,11 +31,12 @@ jobs:
         git add -u 
 
     - name: Commit changes
+      id: commit
       run: |
-        git commit -m "Sync upstream changes" || echo "No changes to commit"
+        git commit -m "Sync upstream changes" && echo "::set-output name=committed::true" || echo "::set-output name=committed::false"
 
     - name: Push changes
+      if: steps.commit.outputs.committed == 'true'
       run: git push origin master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
