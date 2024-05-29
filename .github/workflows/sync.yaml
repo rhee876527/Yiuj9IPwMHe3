@@ -25,14 +25,13 @@ jobs:
     - name: Check if merge is necessary
       id: check_merge
       run: |
-        echo "Checking for new commits from upstream..."
         UPSTREAM_BRANCH="master"
         FORK_BRANCH="master"
 
-        # Check for differences between the upstream and the local fork
-        UPSTREAM_DIFF=$(git log HEAD..upstream/$UPSTREAM_BRANCH --oneline)
+        # Check for new commits in the upstream branch that are not in the fork's branch
+        NEW_COMMITS=$(git rev-list HEAD..upstream/$UPSTREAM_BRANCH --count)
 
-        if [ -n "$UPSTREAM_DIFF" ]; then
+        if [ "$NEW_COMMITS" -gt 0 ]; then
           echo "Changes detected, merge needed."
           echo "merge_needed=true" >> $GITHUB_ENV
         else
