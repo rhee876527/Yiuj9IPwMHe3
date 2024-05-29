@@ -22,27 +22,7 @@ jobs:
     - name: Fetch upstream changes
       run: git fetch upstream
 
-    - name: Check for upstream changes
-      id: check_upstream
-      run: |
-        UPSTREAM_BRANCH="master"
-        LOCAL_BRANCH="master"
-
-        # Fetch the latest commits from the upstream branch
-        git fetch upstream
-
-        # Check if the upstream branch has commits not present in the local branch
-        if [ $(git rev-list ${LOCAL_BRANCH}..upstream/${UPSTREAM_BRANCH} --count) -gt 0 ]; then
-          echo "Upstream changes detected."
-          echo "merge_needed=true" >> $GITHUB_ENV
-        else
-          echo "No upstream changes detected."
-          echo "merge_needed=false" >> $GITHUB_ENV
-        fi
-      shell: bash
-
     - name: Merge changes
-      if: env.merge_needed == 'true'
       run: |
         git merge upstream/${UPSTREAM_BRANCH} --no-commit --no-ff -Xtheirs --allow-unrelated-histories || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
@@ -50,22 +30,11 @@ jobs:
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
         git add -u
 
-    - name: Check for changes
-      if: env.merge_needed == 'true'
-      id: check_changes
-      run: |
-        if [ -z "$(git status --porcelain)" ]; then
-          echo "changes=false" >> $GITHUB_ENV
-        else
-          echo "changes=true" >> $GITHUB_ENV
-        fi
-
     - name: Commit changes
-      if: env.changes == 'true'
-      run: git commit -m "Sync upstream changes"
+      run: |
+        git commit -m "Sync upstream changes" || echo "No changes to commit"
 
     - name: Push changes
-      if: env.changes == 'true'
-      run: git push origin master
+      run: git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
