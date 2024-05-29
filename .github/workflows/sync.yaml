@@ -35,6 +35,6 @@ jobs:
         git commit -m "Sync upstream changes" || echo "No changes to commit"
 
     - name: Push changes
-      run: git push origin main
+      run: git push origin master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
