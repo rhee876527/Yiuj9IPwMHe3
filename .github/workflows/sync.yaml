@@ -26,32 +26,17 @@ jobs:
       id: check_merge
       run: |
         echo "Checking for new commits from upstream..."
-        UPSTREAM_REPO="folbricht/routedns"
-        FORK_REPO="${{ github.repository }}"
         UPSTREAM_BRANCH="master"
         FORK_BRANCH="master"
 
-        # Construct the comparison URL
-        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$UPSTREAM_BRANCH...${{ github.actor }}:${{ github.repository }}:$FORK_BRANCH"
-        echo "COMPARE_URL=$COMPARE_URL"
+        # Check for differences between the upstream and the local fork
+        UPSTREAM_DIFF=$(git log HEAD..upstream/$UPSTREAM_BRANCH --oneline)
 
-        # Fetch the comparison result
-        COMPARE_RESULT=$(curl -s "$COMPARE_URL")
-
-        # Check if the API call was successful
-        if echo "$COMPARE_RESULT" | jq -e . > /dev/null 2>&1; then
-          AHEAD_BY=$(echo "$COMPARE_RESULT" | jq -r '.ahead_by')
-          echo "AHEAD_BY=$AHEAD_BY"
-          
-          if [ "$AHEAD_BY" -gt 0 ] 2>/dev/null; then
-            echo "Changes detected, merge needed."
-            echo "merge_needed=true" >> $GITHUB_ENV
-          else
-            echo "No changes to sync."
-            echo "merge_needed=false" >> $GITHUB_ENV
-          fi
+        if [ -n "$UPSTREAM_DIFF" ]; then
+          echo "Changes detected, merge needed."
+          echo "merge_needed=true" >> $GITHUB_ENV
         else
-          echo "Failed to fetch comparison data from GitHub API."
+          echo "No changes to sync."
           echo "merge_needed=false" >> $GITHUB_ENV
         fi
       shell: sh
