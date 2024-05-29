@@ -51,10 +51,10 @@ jobs:
 
         # Compare the commits to check if there are any new commits in the upstream repository
         COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$FORK_LATEST_COMMIT...$UPSTREAM_LATEST_COMMIT"
-        COMPARE_RESULT=$(curl -s $COMPARE_URL | jq -r '.status')
-        echo "COMPARE_RESULT=$COMPARE_RESULT"
+        AHEAD_BY=$(curl -s $COMPARE_URL | jq -r '.ahead_by')
+        echo "AHEAD_BY=$AHEAD_BY"
         
-        if [ "$COMPARE_RESULT" = "behind" ]; then
+        if [ "$AHEAD_BY" -gt 0 ]; then
           echo "Changes detected, merge needed."
           echo "::set-output name=merge_needed::true"
         else
