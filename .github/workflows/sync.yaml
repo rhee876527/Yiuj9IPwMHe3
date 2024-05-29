@@ -31,30 +31,12 @@ jobs:
         UPSTREAM_BRANCH="master"
         FORK_BRANCH="master"
 
-        # Get the latest commit SHA from the upstream repository
-        UPSTREAM_LATEST_COMMIT=$(curl -s https://api.github.com/repos/$UPSTREAM_REPO/commits/$UPSTREAM_BRANCH | jq -r '.sha')
-        if [ -z "$UPSTREAM_LATEST_COMMIT" ]; then
-          echo "Failed to get the latest commit from upstream."
-          echo "::set-output name=merge_needed::false"
-          exit 0
-        fi
-        echo "UPSTREAM_LATEST_COMMIT=$UPSTREAM_LATEST_COMMIT"
-
-        # Get the latest commit SHA from the forked repository
-        FORK_LATEST_COMMIT=$(curl -s https://api.github.com/repos/$FORK_REPO/commits/$FORK_BRANCH | jq -r '.sha')
-        if [ -z "$FORK_LATEST_COMMIT" ]; then
-          echo "Failed to get the latest commit from the fork."
-          echo "::set-output name=merge_needed::false"
-          exit 0
-        fi
-        echo "FORK_LATEST_COMMIT=$FORK_LATEST_COMMIT"
-
         # Compare the commits to check if there are any new commits in the upstream repository
-        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$FORK_LATEST_COMMIT...$UPSTREAM_LATEST_COMMIT"
-        AHEAD_BY=$(curl -s $COMPARE_URL | jq -r '.ahead_by')
-        echo "AHEAD_BY=$AHEAD_BY"
+        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$FORK_REPO:$FORK_BRANCH...$UPSTREAM_REPO:$UPSTREAM_BRANCH"
+        COMPARE_RESULT=$(curl -s $COMPARE_URL | jq -r '.ahead_by')
+        echo "AHEAD_BY=$COMPARE_RESULT"
         
-        if [ "$AHEAD_BY" -gt 0 ]; then
+        if [ "$COMPARE_RESULT" -gt 0 ]; then
           echo "Changes detected, merge needed."
           echo "::set-output name=merge_needed::true"
         else
