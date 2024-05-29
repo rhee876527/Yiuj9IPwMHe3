@@ -25,6 +25,7 @@ jobs:
     - name: Check if merge is necessary
       id: check_merge
       run: |
+        set -e
         # Get the latest commit hash from upstream
         UPSTREAM_HASH=$(git rev-parse upstream/master)
         # Get the merge base of upstream/master and origin/master
