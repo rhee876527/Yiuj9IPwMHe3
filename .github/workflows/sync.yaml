@@ -17,7 +17,7 @@ jobs:
       run: |
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-        git remote add upstream https://github.com/folbricht/routedns.git  
+        git remote add upstream https://github.com/folbricht/routedns.git
 
     - name: Fetch upstream changes
       run: git fetch upstream
@@ -27,6 +27,9 @@ jobs:
       run: |
         UPSTREAM_BRANCH="master"
         LOCAL_BRANCH="master"
+
+        # Fetch the latest commits from the upstream branch
+        git fetch upstream
 
         # Check if the upstream branch has commits not present in the local branch
         if [ $(git rev-list ${LOCAL_BRANCH}..upstream/${UPSTREAM_BRANCH} --count) -gt 0 ]; then
