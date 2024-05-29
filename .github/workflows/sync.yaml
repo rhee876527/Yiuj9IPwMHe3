@@ -22,15 +22,33 @@ jobs:
     - name: Fetch upstream changes
       run: git fetch upstream
 
-    - name: Merge changes
+    - name: Check if merge is necessary
+      id: check_merge
       run: |
-        git merge --no-commit --no-ff -Xtheirs upstream/master || true
+        # Get the latest commit hash from upstream
+        UPSTREAM_HASH=$(git rev-parse upstream/master)
+        # Get the merge base of upstream/master and origin/master
+        MERGE_BASE=$(git merge-base upstream/master origin/master)
+        # Check if the latest commit on upstream is not an ancestor of the merge base
+        if [ "$UPSTREAM_HASH" = "$MERGE_BASE" ]; then
+          echo "No changes to sync."
+          echo "::set-output name=merge_needed::false"
+        else
+          echo "Changes detected, merge needed."
+          echo "::set-output name=merge_needed::true"
+        fi
+
+    - name: Merge changes
+      if: steps.check_merge.outputs.merge_needed == 'true'
+      run: |
+        git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
         git reset HEAD .github/workflows/*.yaml .github/workflows/*.yml || true
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
         git add -u
 
     - name: Check for changes
+      if: steps.check_merge.outputs.merge_needed == 'true'
       id: changes
       run: |
         if [ -z "$(git status --porcelain)" ]; then
