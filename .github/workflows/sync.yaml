@@ -34,9 +34,10 @@ jobs:
         # Construct the comparison URL
         COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$UPSTREAM_BRANCH...${{ github.actor }}:${{ github.repository }}:$FORK_BRANCH"
         echo "COMPARE_URL=$COMPARE_URL"
-        COMPARE_RESULT=$(curl -s $COMPARE_URL)
-        echo "COMPARE_RESULT=$COMPARE_RESULT"
-        
+
+        # Fetch the comparison result
+        COMPARE_RESULT=$(curl -s "$COMPARE_URL")
+
         # Check if the API call was successful
         if echo "$COMPARE_RESULT" | jq -e . > /dev/null 2>&1; then
           AHEAD_BY=$(echo "$COMPARE_RESULT" | jq -r '.ahead_by')
@@ -44,19 +45,19 @@ jobs:
           
           if [ "$AHEAD_BY" -gt 0 ] 2>/dev/null; then
             echo "Changes detected, merge needed."
-            echo "::set-output name=merge_needed::true"
+            echo "merge_needed=true" >> $GITHUB_ENV
           else
             echo "No changes to sync."
-            echo "::set-output name=merge_needed::false"
+            echo "merge_needed=false" >> $GITHUB_ENV
           fi
         else
           echo "Failed to fetch comparison data from GitHub API."
-          echo "::set-output name=merge_needed::false"
+          echo "merge_needed=false" >> $GITHUB_ENV
         fi
       shell: sh
 
     - name: Merge changes
-      if: steps.check_merge.outputs.merge_needed == 'true'
+      if: env.merge_needed == 'true'
       run: |
         git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
@@ -65,21 +66,21 @@ jobs:
         git add -u
 
     - name: Check for changes
-      if: steps.check_merge.outputs.merge_needed == 'true'
+      if: env.merge_needed == 'true'
       id: changes
       run: |
         if [ -z "$(git status --porcelain)" ]; then
-          echo "::set-output name=changes::false"
+          echo "changes=false" >> $GITHUB_ENV
         else
-          echo "::set-output name=changes::true"
+          echo "changes=true" >> $GITHUB_ENV
         fi
 
     - name: Commit changes
-      if: steps.changes.outputs.changes == 'true'
+      if: env.changes == 'true'
       run: git commit -m "Sync upstream changes"
 
     - name: Push changes
-      if: steps.changes.outputs.changes == 'true'
+      if: env.changes == 'true'
       run: git push origin master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
