@@ -25,33 +25,43 @@ jobs:
     - name: Check if merge is necessary
       id: check_merge
       run: |
-        # Get the latest commit hash from upstream
-        UPSTREAM_HASH=$(git rev-parse upstream/master)
-        if [ $? -ne 0 ]; then
-          echo "Failed to get upstream hash"
+        echo "Checking for new commits from upstream..."
+        UPSTREAM_REPO="folbricht/routedns"
+        FORK_REPO="${{ github.repository }}"
+        UPSTREAM_BRANCH="master"
+        FORK_BRANCH="master"
+
+        # Get the latest commit SHA from the upstream repository
+        UPSTREAM_LATEST_COMMIT=$(curl -s https://api.github.com/repos/$UPSTREAM_REPO/commits/$UPSTREAM_BRANCH | jq -r '.sha')
+        if [ -z "$UPSTREAM_LATEST_COMMIT" ]; then
+          echo "Failed to get the latest commit from upstream."
           echo "::set-output name=merge_needed::false"
           exit 0
         fi
-        echo "UPSTREAM_HASH=$UPSTREAM_HASH"
-        
-        # Get the merge base of upstream/master and origin/master
-        MERGE_BASE=$(git merge-base upstream/master origin/master)
-        if [ $? -ne 0 ]; then
-          echo "Failed to get merge base"
+        echo "UPSTREAM_LATEST_COMMIT=$UPSTREAM_LATEST_COMMIT"
+
+        # Get the latest commit SHA from the forked repository
+        FORK_LATEST_COMMIT=$(curl -s https://api.github.com/repos/$FORK_REPO/commits/$FORK_BRANCH | jq -r '.sha')
+        if [ -z "$FORK_LATEST_COMMIT" ]; then
+          echo "Failed to get the latest commit from the fork."
           echo "::set-output name=merge_needed::false"
           exit 0
         fi
-        echo "MERGE_BASE=$MERGE_BASE"
+        echo "FORK_LATEST_COMMIT=$FORK_LATEST_COMMIT"
+
+        # Compare the commits to check if there are any new commits in the upstream repository
+        COMPARE_URL="https://api.github.com/repos/$UPSTREAM_REPO/compare/$FORK_LATEST_COMMIT...$UPSTREAM_LATEST_COMMIT"
+        COMPARE_RESULT=$(curl -s $COMPARE_URL | jq -r '.status')
+        echo "COMPARE_RESULT=$COMPARE_RESULT"
         
-        # Check if the latest commit on upstream is not an ancestor of the merge base
-        if [ "$UPSTREAM_HASH" = "$MERGE_BASE" ]; then
-          echo "No changes to sync."
-          echo "::set-output name=merge_needed::false"
-        else
+        if [ "$COMPARE_RESULT" = "behind" ]; then
           echo "Changes detected, merge needed."
           echo "::set-output name=merge_needed::true"
+        else
+          echo "No changes to sync."
+          echo "::set-output name=merge_needed::false"
         fi
-      shell: bash
+      shell: sh
 
     - name: Merge changes
       if: steps.check_merge.outputs.merge_needed == 'true'
