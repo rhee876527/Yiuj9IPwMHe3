@@ -39,7 +39,7 @@ jobs:
     - name: Merge changes
       if: env.FORK_DATE < env.UPSTREAM_DATE
       run: |
-        git merge upstream/${UPSTREAM_BRANCH} --no-commit --no-ff -Xtheirs --allow-unrelated-histories || true
+        git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
         git reset HEAD .github/workflows/*.yaml .github/workflows/*.yml || true
         git checkout -- .github/workflows/*.yaml .github/workflows/*.yml || true
