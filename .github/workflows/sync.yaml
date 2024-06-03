@@ -37,7 +37,7 @@ jobs:
 
 
     - name: Merge changes
-#      if: env.FORK_DATE < env.UPSTREAM_DATE
+      if: env.FORK_DATE < env.UPSTREAM_DATE
       run: |
         git merge --no-commit --no-ff -Xtheirs --allow-unrelated-histories upstream/master || true
         # Exclude YAML files from .github/workflows/ directory from being synchronized
@@ -46,12 +46,12 @@ jobs:
         git add -u
 
     - name: Commit changes
-#      if: env.FORK_DATE < env.UPSTREAM_DATE
+      if: env.FORK_DATE < env.UPSTREAM_DATE
       run: |
         git commit -m "Sync upstream changes" || echo "No changes to commit"
 
     - name: Push changes
-#      if: env.FORK_DATE < env.UPSTREAM_DATE
+      if: env.FORK_DATE < env.UPSTREAM_DATE
       run: git push origin master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
