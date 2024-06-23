@@ -498,6 +498,8 @@ func instantiateGroup(id string, g group, resolvers map[string]rdns.Resolver) er
 		switch g.ECSOp {
 		case "add":
 			f = rdns.ECSModifierAdd(g.ECSAddress, g.ECSPrefix4, g.ECSPrefix6)
+		case "add-if-missing":
+			f = rdns.ECSModifierAddIfMissing(g.ECSAddress, g.ECSPrefix4, g.ECSPrefix6)
 		case "delete":
 			f = rdns.ECSModifierDelete
 		case "privacy":
@@ -766,6 +768,23 @@ func instantiateGroup(id string, g group, resolvers map[string]rdns.Resolver) er
 			EDNS0EDETemplate: edeTpl,
 		}
 		resolvers[id], err = rdns.NewStaticResolver(id, opt)
+		if err != nil {
+			return err
+		}
+	case "static-template":
+		edeTpl, err := rdns.NewEDNS0EDETemplate(g.EDNS0EDE.Code, g.EDNS0EDE.Text)
+		if err != nil {
+			return fmt.Errorf("failed to parse edn0 template in %q: %w", id, err)
+		}
+		opt := rdns.StaticResolverOptions{
+			Answer:           g.Answer,
+			NS:               g.NS,
+			Extra:            g.Extra,
+			RCode:            g.RCode,
+			Truncate:         g.Truncate,
+			EDNS0EDETemplate: edeTpl,
+		}
+		resolvers[id], err = rdns.NewStaticTemplateResolver(id, opt)
 		if err != nil {
 			return err
 		}
