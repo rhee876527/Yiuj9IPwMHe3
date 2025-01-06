@@ -15,8 +15,8 @@ jobs:
 
     - name: Set up Git
       run: |
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
         git remote add upstream https://github.com/folbricht/routedns.git
 
     - name: Fetch upstream changes
