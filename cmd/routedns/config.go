@@ -22,6 +22,7 @@ type config struct {
 type listener struct {
 	Address    string
 	Protocol   string
+	IPVersion  int `toml:"ip-version"` // 4 = IPv4, 6 = IPv6
 	Transport  string
 	Resolver   string
 	CA         string
@@ -59,7 +60,11 @@ type resolver struct {
 	Socks5ResolveLocal bool   `toml:"socks5-resolve-local"` // Resolve DNS server address locally (i.e. bootstrap-resolver), not on the SOCK5 proxy
 
 	//QUIC and DoH/3 configuration
-	Use0RTT       bool   `toml:"enable-0rtt"`
+	Use0RTT bool `toml:"enable-0rtt"`
+
+	// URL for Oblivious DNS target
+	Target       string `toml:"target"`
+	TargetConfig string `toml:"target-config"`
 }
 
 // DoH-specific resolver options
@@ -118,7 +123,7 @@ type group struct {
 
 	// Blocklist options
 	Blocklist []string // Blocklist rules, only used by "blocklist" type
-	Format    string   // Blocklist input format: "regex", "domain", or "hosts"
+	Format    string   // Blocklist input format: "regex", "domain", "hosts", or "mac"
 	Source    string   // Location of external blocklist, can be a local path or remote URL
 	Refresh   int      // Blocklist refresh when using an external source, in seconds
 
@@ -135,6 +140,7 @@ type group struct {
 	AllowlistRefresh  int      `toml:"allowlist-refresh"`
 	LocationDB        string   `toml:"location-db"` // GeoIP database file for response blocklist. Default "/usr/share/GeoIP/GeoLite2-City.mmdb"
 	Inverted          bool     // Only allow IPs on the blocklist. Supported in response-blocklist-ip and response-blocklist-name
+	UseECS            bool     `toml:"use-ecs"` // Use ECS IP address in client-blocklist
 
 	// Static responder options
 	Answer   []string
@@ -173,6 +179,10 @@ type group struct {
 	LogRequest  bool   `toml:"log-request"`  // Logs request records to syslog
 	LogResponse bool   `toml:"log-response"` // Logs response records to syslog
 	Verbose     bool   `toml:"verbose"`      // When logging responses, include types that don't match the query type
+
+	// Query logging options
+	OutputFile   string `toml:"output-file"`   // Log filename or blank for STDOUT
+	OutputFormat string `toml:"output-format"` // "text" or "json"
 }
 
 // Block/Allowlist items for blocklist-v2

@@ -9,6 +9,7 @@
   - [Plain DNS](#plain-dns)
   - [DNS-over-TLS](#dns-over-tls)
   - [DNS-over-HTTPS](#dns-over-https)
+  - [Oblivious DNS (ODoH)](#oblivious-dns-odoh)
   - [DNS-over-DTLS](#dns-over-dtls)
   - [DNS-over-QUIC](#dns-over-quic)
   - [Admin](#admin)
@@ -37,10 +38,12 @@
   - [Retrying Truncated Responses](#retrying-truncated-responses)
   - [Request Deduplication](#request-deduplication)
   - [Syslog](#syslog)
+  - [Qyery Log](#query-log)
 - [Resolvers](#resolvers)
   - [Plain DNS](#plain-dns-resolver)
   - [DNS-over-TLS](#dns-over-tls-resolver)
   - [DNS-over-HTTPS](#dns-over-https-resolver)
+  - [Oblivious DNS (ODoH)](#oblivious-DNS-ODoH)
   - [DNS-over-DTLS](#dns-over-dtls-resolver)
   - [DNS-over-QUIC](#dns-over-quic-resolver)
   - [Bootstrap Resolver](#bootstrap-resolver)
@@ -120,6 +123,7 @@ Common options for all listeners:
 
 - `address` - Listen address.
 - `protocol` - The DNS protocol used to receive queries, can be `udp`, `tcp`, `dot`, `doh`, `doq`.
+- `ip-version` - IP version (4 or 6) to use for the listener. Optional, defaults to both.
 - `resolver` - Name/identifier of the next element in the pipeline. Can be a router, group, modifier or resolver.
 - `allowed-net` - Array of network addresses that are allowed to send queries to this listener, in CIDR notation, such as `["192.167.1.0/24", "::1/128"]`. If not set, no filter is applied, all clients can send queries.
 
@@ -226,6 +230,31 @@ frontend = { trusted-proxy = "192.168.1.0/24" }
 ```
 
 Example config files: [mutual-tls-doh-server.toml](../cmd/routedns/example-config/mutual-tls-doh-server.toml), [doh-quic-server.toml](../cmd/routedns/example-config/doh-quic-server.toml), [doh-behind-proxy.toml](../cmd/routedns/example-config/doh-behind-proxy.toml), [doh-no-tls.toml](../cmd/routedns/example-config/doh-no-tls.toml)
+
+### Oblivious DNS (ODoH)
+
+ODoH ([draft](https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-03)) is intended to improve privacy of **clients** by encrypting queries for a **target** DNS server while sending the query through a **proxy**. In this configuration, neither the target nor the proxy can see the query content and the source IP of the client at the same time. A client query is resolved as follows:
+
+- The client first queries the public key of the target resolver. This is a plain query that can be resolved by any resolver, but for privacy it's best to *not* use the target for this. RouteDNS always uses the proxy for this. The response is validated with DNSSEC.
+- The client then encrypts the actual query with the public key of the target. A public key of the client is embedded in the encrypted message.
+- The encrypted query message is sent to the proxy, with information about which target it should be forwarded.
+- The target then encrypts the response with the client key and responds to the proxy, which then forwards the response to the client.
+- The client decrypts the response it received from the proxy using its private key.
+
+The ODoH resolver has all the configuration options as [DoH](#dns-over-https-resolver), with the configuration (endpoint, certs, mTLS, etc) for the proxy. In addition, a `target` option is available to specify the URL of the target. Configured with `protocol = "odoh"`.
+
+Examples:
+
+ODoH client using Cloudflare as proxy and target (since there aren't any other public proxies as of Dec 2020).
+
+```toml
+[resolvers.cloudflare-odoh-proxy]
+address = "https://1.1.1.1/dns-query"
+protocol = "odoh"
+target = "https://odoh.cloudflare-dns.com/dns-query"
+```
+
+Example config files: [odoh-client.toml](../cmd/routedns/example-config/odoh-client.toml)
 
 ### DNS-over-DTLS
 
@@ -574,7 +603,7 @@ This replacer could be used where the company has multiple environment behind VP
 
 Query blocklists can be added to resolver-chains to prevent further processing of queries (return NXDOMAIN or spoofed IP) or to send queries to different resolvers if the query name matches a rule on the blocklist. A blocklist can have multiple rule-sets, with different formats. In its simplest form, the blocklist has just one upstream resolver and forwards anything that does not match its rules. If a query matches, it'll be answered with NXDOMAIN or a spoofed IP, depending on what blocklist format is used.
 
-The blocklist group supports 3 types of blocklist formats:
+The blocklist group supports 4 types of blocklist formats:
 
 - `regexp` - The entire query string is matched against a list of regular expressions and NXDOMAIN returned if a match is found.
 - `domain` - A list of domains with some wildcard capabilities. Also results in an NXDOMAIN. Entries in the list are matched as follows:
@@ -582,6 +611,7 @@ The blocklist group supports 3 types of blocklist formats:
   - `.domain.com` matches domain.com and all sub-domains.
   - `*.domain.com` matches all subdomains but not domain.com. Only one wildcard (at the start of the string) is allowed.
 - `hosts` - A blocklist in hosts-file format. If a non-zero IP address is provided for a record, the response is spoofed rather than returning NXDOMAIN.
+- `mac` - A blocklist of MAC addresses in the form `01:23:34:ab:bc:de` representing the MAC address of a client. The query is expected to contain the value of the client's MAC in EDNS0 option 65001.
 
 In addition to reading the blocklist rules from the configuration file, routedns supports reading from the local filesystem and from remote servers via HTTP(S). Use the `blocklist-source` property of the blocklist to provide a list of blocklists of different formats, either local files or URLs. The `blocklist-refresh` property can be used to specify a reload-period (in seconds). If no `blocklist-refresh` period is given, the blocklist will only be loaded once at startup. The following example loads a regexp blocklist via HTTP once a day.
 
@@ -694,7 +724,7 @@ allowlist-source = [
 ]
 ```
 
-Example config files: [blocklist-regexp.toml](../cmd/routedns/example-config/blocklist-regexp.toml), [block-split-cache.toml](../cmd/routedns/example-config/block-split-cache.toml), [blocklist-domain.toml](../cmd/routedns/example-config/blocklist-domain.toml), [blocklist-hosts.toml](../cmd/routedns/example-config/blocklist-hosts.toml), [blocklist-local.toml](../cmd/routedns/example-config/blocklist-local.toml), [blocklist-remote.toml](../cmd/routedns/example-config/blocklist-remote.toml), [blocklist-allow.toml](../cmd/routedns/example-config/blocklist-allow.toml), [blocklist-resolver.toml](../cmd/routedns/example-config/blocklist-resolver.toml), [blocklist-domain-ede.toml](../cmd/routedns/example-config/blocklist-domain-ede.toml)
+Example config files: [blocklist-regexp.toml](../cmd/routedns/example-config/blocklist-regexp.toml), [block-split-cache.toml](../cmd/routedns/example-config/block-split-cache.toml), [blocklist-domain.toml](../cmd/routedns/example-config/blocklist-domain.toml), [blocklist-hosts.toml](../cmd/routedns/example-config/blocklist-hosts.toml), [blocklist-local.toml](../cmd/routedns/example-config/blocklist-local.toml), [blocklist-remote.toml](../cmd/routedns/example-config/blocklist-remote.toml), [blocklist-allow.toml](../cmd/routedns/example-config/blocklist-allow.toml), [blocklist-resolver.toml](../cmd/routedns/example-config/blocklist-resolver.toml), [blocklist-domain-ede.toml](../cmd/routedns/example-config/blocklist-domain-ede.toml), [blocklist-mac.toml](../cmd/routedns/example-config/blocklist-mac.toml)
 
 ### Response Blocklist
 
@@ -819,6 +849,7 @@ Options:
 - `blocklist-refresh` - Time interval (in seconds) in which external (remote or local) blocklists are reloaded. Optional.
 - `blocklist-source` - An array of blocklists, each with `format` and `source` and optionally `name`.
 - `location-db` - If location-based IP blocking is used, this specifies the GeoIP data file to load. Optional. Defaults to /usr/share/GeoIP/GeoLite2-City.mmdb
+- `use-ecs` - If set to true, will use the IP address in the client's ECS record instead of the real IP. Can be used to simulate queries from other source IPs. The address should be set to the IP, not a subnet for this to work. Uses the client's real IP if no ECS record is found in the query.
 
 Examples:
 
@@ -1431,6 +1462,31 @@ log-response = true
 
 Example config files: [syslog.toml](../cmd/routedns/example-config/syslog.toml)
 
+### Query Log
+
+The `query-log` element logs all DNS query details, including time, client IP, DNS question name, class and type. Logs can be written to a file or STDOUT.
+
+#### Configuration
+
+To enable query-logging, add an element with `type = "query-log"` in the groups section of the configuration.
+
+Options:
+
+- `output-file` - Name of the file to write logs to, leave blank for STDOUT. Logs are appended to the file and there is no rotation.
+- `output-format` - Output format. Defaults to "text".
+
+Examples:
+
+```toml
+[groups.query-log]
+type   = "query-log"
+resolvers = ["cloudflare-dot"]
+output-file = "/tmp/query.log"
+output-format = "text"
+```
+
+Example config files: [syslog.toml](../cmd/routedns/example-config/query-log.toml)
+
 ## Resolvers
 
 Resolvers forward queries to other DNS servers over the network and typically represent the end of one or many processing pipelines. Resolvers encode every query that is passed from listeners, modifiers, routers etc and send them to a DNS server without further processing. Like with other elements in the pipeline, resolvers requires a unique identifier to reference them from other elements. The following protocols are supported:
@@ -1585,6 +1641,41 @@ enable-0rtt = true
 ```
 
 Example config files: [well-known.toml](../cmd/routedns/example-config/well-known.toml), [simple-doh.toml](../cmd/routedns/example-config/simple-doh.toml), [mutual-tls-doh-client.toml](../cmd/routedns/example-config/mutual-tls-doh-client.toml)
+
+### Oblivious DNS (ODoH)
+
+ODoH ([draft](https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-03)) is intended to improve privacy of **clients** by encrypting queries for a **target** DNS server while sending the query through a **proxy**. In this configuration, neither the target nor the proxy can see the query content and the source IP of the client at the same time. A client query is resolved as follows:
+
+- The client first queries the public key of the target resolver. This is a plain query that can be resolved by any resolver, but for privacy it's best to *not* use the target for this. RouteDNS always uses the proxy for this. The response is validated with DNSSEC.
+- The client then encrypts the actual query with the public key of the target. A public key of the client is embedded in the encrypted message.
+- The encrypted query message is sent to the proxy, with information about which target it should be forwarded to.
+- The target then encrypts the response with the client key and responds to the proxy, which then forwards the response to the client.
+- The client decrypts the response it received from the proxy using its private key.
+
+The ODoH resolver has all the configuration options as [DoH](#DNS-over-HTTPS-Resolver), with the configuration (endpoint, certs, mTLS, etc) for the proxy. In addition, a `target` option is available to specify the URL of the target. Configured with `protocol = "odoh"`.
+
+Examples:
+
+ODoH client using Cloudflare as proxy and target (since there aren't any other public proxies as of Dec 2020).
+
+```toml
+[resolvers.cloudflare-odoh-proxy]
+protocol = "odoh"
+# Address of the oblivious DNS proxy server
+address = "https://odoh-noads-nl.alekberg.net/proxy"
+# Address of the target. The hostname and path are passed to the proxy for forwarding
+# of encrypted queries. No cert or bootstrap options for the target since the proxy
+# connects to it on the client's behalf
+target = "https://odoh.cloudflare-dns.com/dns-query"
+
+# The ODoH config/key of the Target. 
+target-config = "0000000secret...."
+# The ODoH config is usually hosted on the target under https://[target]/.well-known/odohconfigs 
+# If the target-config is not specified here, the resolver will request it automatically. 
+
+```
+
+Example config files: [odoh-client.toml](../cmd/routedns/example-config/odoh-client.toml)
 
 ### DNS-over-DTLS Resolver
 
